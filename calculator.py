@@ -1,14 +1,120 @@
-"""
-This is GUI interface of calculator
-"""
+import operator
 from tkinter import *
 
 
-class CalculatorApp():
-    """
-    Calculator class
-    """
+class Calculator():
     def __init__(self):
+        self.priority = {'+': 1, '-': 1, '*': 2, '/': 2}
+        self.operators = {"(": None, ")": None, '+': operator.add, '-': operator.sub,
+                     '*': operator.mul, '/': operator.truediv, "^": operator.pow}
+
+    def calculation(self, expression):
+        """
+        :param expression: 
+        :return: resilt of expression 
+        """
+        # turn expression without spaces into list, which divide expression into operands and operators
+        expression = self.turn(expression)
+        # turn expression into Reverse Polish Notation
+        expression = self.infix_to_postfix(expression)
+
+        stack = [0]
+        for sign in expression:
+            if sign in self.operators:
+                op2, op1 = stack.pop(), stack.pop()
+                stack.append(self.operators[sign](op1, op2))
+            elif sign:
+                stack.append(float(sign))
+
+        return stack.pop()
+
+    def infix_to_postfix(self, expression):
+        """
+        :param expression: 
+        :return: reverse polish notation expression
+        """
+        stack = []  # only pop when the coming op has priority
+        output = []
+        for sign in expression:
+            if sign not in self.operators:
+                output.append(sign)
+            elif sign == '(':
+                stack.append('(')
+            elif sign == ')':
+                while stack and stack[-1] != '(':
+                    output.append(stack.pop())
+                stack.pop()  # pop '('
+            else:
+                while stack and stack[-1] != '(' and self.priority[sign] <= self.priority[stack[-1]]:
+                    output.append(stack.pop())
+                stack.append(sign)
+        # leftover
+        while stack:
+            output.append(stack.pop())
+
+        return output
+
+    def turn(self, expression):
+        """
+        :param expression: 
+        :return: list with expression operators and operands 
+        """
+        output = []
+        for sign in expression:
+            if sign in self.operators:
+                output.append(sign)
+
+            # if output doesn't exist
+            elif not output:
+                output.append(sign)
+
+            # if sign is operand and last sign isn't an operand
+            elif sign not in self.operators and not output[-1].isdigit() and "." not in output[-1]:
+                output.append(sign)
+
+            # if sign is operand and last sign is operand
+            elif sign not in self.operators and output[-1].isdigit() or "." in output[-1]:
+                output[-1] += sign
+
+        return output
+
+    def reversePolishNotation(self, problem):
+        stack = ["+"]
+        mas = ""
+
+        for sign in problem:
+            if sign.isdigit():
+                # if sign is digit - send it to list
+                mas += sign
+
+            elif sign in self.operatorsLevel:
+
+                # if operator has bigger priority than the last, send it to list first
+                if self.operatorsLevel[stack[-1]] < self.operatorsLevel[sign]:
+                    mas += " {} ".format(sign)
+
+                # if operator has smaller priority than the last, send it to stack, and the last to list
+                elif self.operatorsLevel[stack[-1]] > self.operatorsLevel[sign]:
+                    mas += " {} ".format(stack.pop())
+                    stack.append(sign)
+
+                # if operators have the same priority, send last to list, and given to stack
+                elif self.operatorsLevel[stack[-1]] == self.operatorsLevel[sign]:
+                    mas += " {} ".format(stack.pop())
+                    stack.append(sign)
+
+        signs = ""
+        for sign in stack:
+            signs += " {} ".format(sign)
+        mas += signs
+        return mas
+
+
+class Window():
+    def __init__(self):
+        # create calculator object
+        self.calculator = Calculator()
+
         # create window
         self.root = Tk()
         self.root.title("Calculator")
@@ -86,80 +192,16 @@ class CalculatorApp():
         self.root.mainloop()
 
     def math(self):
-        operations = []
-        numbers = [""]
-        problem = self.operationEntry.get()
-
-        number = 0
-
-        # clean entry with operations
+        expression = self.operationEntry.get()
         self.operationEntry.delete(0, END)
-
-        for i in range(len(problem)):
-            if problem[i] in self.operations:
-                operations.append(problem[i])
-
-                # look for the next number
-                number += 1
-                numbers.append("")
-
-            # check: is elem number or dot - 'cause user could do a mistake when did operations by keyboard
-            elif problem[i].isdigit() or problem[i] == ".":
-                # append digit or dot to number's string
-                numbers[number] = numbers[number]+problem[i]
-
-        # do numbers integers
-        numbers = [int(elem) for elem in numbers]  # TODO: operations with float also
-
-        for i in range(len(numbers)-1):
-            if operations[0] == "+":
-                operations.pop(0)  # delete operation that we are doing now from list
-                numbers[0] = numbers[0] + numbers[1]  # do operation
-                numbers.pop(1)
-
-            elif operations[0] == "-":
-                operations.pop(0)  # delete operation that we are doing now from list
-                numbers[0] = numbers[0] - numbers[1]  # do operation
-                numbers.pop(1)
-
-            elif operations[0] == "*":
-                operations.pop(0)  # delete operation that we are doing now from list
-                numbers[0] = numbers[0] * numbers[1]  # do operation
-                numbers.pop(1)
-
-            elif operations[0] == "/":
-                operations.pop(0)  # delete operation that we are doing now from list
-                numbers[0] = numbers[0] // numbers[1]  # do operation
-                numbers.pop(1)
-
-            elif operations[0] == "^":
-                operations.pop(0)  # delete operation that we are doing now from list
-                numbers[0] = numbers[0] ** numbers[1]  # do operation
-                numbers.pop(1)
-
-        dozen = False
-
-        # if number has zeros in end, but it's smaller than 10k
-        if numbers[0]/100000%1 == 0:
-            dozen = -1  # e-<<dozen>>. Example: 1000000 mean 1e-6. -1 because of specific of while loop
-
-            while numbers[0]%1 == 0:
-                numbers[0] = numbers[0]/10
-                dozen += 1
-
-            numbers[0] = int(numbers[0]*10)  # while loop did number float - we fix it
-
-        self.operationEntry.insert(0, numbers[0])
-
-        if dozen:
-            self.operationEntry.insert(END, "e-{}".format(dozen))
+        self.operationEntry.insert(END, self.calculator.calculation(expression))
 
     def update(self):
         """
         Update the window
-        
+
         1)Doesn't give user a chance to write two operation signs in one line
-        
+
         :return: 
         None
         """
@@ -200,5 +242,5 @@ class CalculatorApp():
         self.root.after(80, self.update)
 
 
-cal = CalculatorApp()
-cal.create_menu()
+calc = Window()
+calc.create_menu()
