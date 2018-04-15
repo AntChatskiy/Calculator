@@ -1,8 +1,9 @@
 import operator
 from tkinter import *
+from tkinter import ttk
 
 
-class Calculator():
+class Calculator(object):
     def __init__(self):
         self.priority = {'+': 1, '-': 1, '*': 2, '/': 2}
         self.operators = {"(": None, ")": None, '+': operator.add, '-': operator.sub,
@@ -14,7 +15,7 @@ class Calculator():
         :return: resilt of expression 
         """
         # turn expression without spaces into list, which divide expression into operands and operators
-        expression = self.turn(expression)
+        expression = self.parse(expression)
         # turn expression into Reverse Polish Notation
         expression = self.infix_to_postfix(expression)
 
@@ -54,7 +55,7 @@ class Calculator():
 
         return output
 
-    def turn(self, expression):
+    def parse(self, expression):
         """
         :param expression: 
         :return: list with expression operators and operands 
@@ -110,7 +111,7 @@ class Calculator():
         return mas
 
 
-class Window():
+class Window(object):
     def __init__(self):
         # create calculator object
         self.calculator = Calculator()
@@ -134,11 +135,18 @@ class Window():
             ["3", "2", "1", "*"],
             ["0", "00", ".", "/"],
             ["CE", "C", "=", "^"],
+            ["(", ")"]
 
         ]
 
         # list with buttons
         self.menu = []
+
+        self.fontStyle = ttk.Style()
+        self.fontStyle.configure("TButton", font=("times", "14"))
+
+        # buttons settings
+        self.settings = {"style": "TButton", "width": 6}  # "font": "times 14",
 
         # list with operands
         self.operations = ["+", "-", "*", "/", "^", "="]
@@ -159,30 +167,29 @@ class Window():
         None
         """
 
-        #  fill list with buttons by the information picked from strMenu
+        # fill list with buttons by the information picked from strMenu
         for i in range(len(self.strMenu)):
             self.menu.append([])
             for ii in range(len(self.strMenu[i])):
                 sign = self.strMenu[i][ii]
 
                 if sign == "=":
-                    self.menu[i].append(Button(self.numbersFrame, text=sign, font="times 14", width=6,
-                                               command=self.math))
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings, command=self.math))
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 elif sign == "CE":
-                    self.menu[i].append(Button(self.numbersFrame, text=sign, font="times 14", width=6,
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda:
                                                self.operationEntry.delete(len(self.operationEntry.get())-1)))
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 elif sign == "C":
-                    self.menu[i].append(Button(self.numbersFrame, text=sign, font="times 14", width=6,
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda: self.operationEntry.delete(0, END)))
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 else:
-                    self.menu[i].append(Button(self.numbersFrame, text=sign, font="times 14", width=6,
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda lambda_sign=sign:
                                                self.operationEntry.insert(END, lambda_sign)))
                     self.menu[i][ii].grid(row=i, column=ii)
@@ -200,7 +207,7 @@ class Window():
         """
         Update the window
 
-        1)Doesn't give user a chance to write two operation signs in one line
+        Prevent user's mistakes
 
         :return: 
         None
@@ -213,32 +220,30 @@ class Window():
             last = operation[-1]
 
             # disable buttons
-            for Sign in self.operations:
-                # if there's an operation sign in the operation entry
-                if last == Sign:
-                    flag = True
-                    # check every button - does it contain an operation sign
-                    for mas in self.menu:
-                        for button in mas:
-                            # if button text and operation sign are the same...
-                            for sign in self.operations:
-                                if button["text"] == sign:
-                                    button["state"] = DISABLED
-                                    # ...you shouldn't continue to compare them
-                                    break
-                    flag = True
-                    break
+            # if there's an operation sign in the operation entry:
+            if last in self.operations:
+                flag = True
 
-                else:
-                    flag = False
+                # check every button - does it contain an operation sign
+                for mas in self.menu:
+                    for button in mas:
+                        # if button text and operation sign or button are the same...
+                            if button["text"] in self.operations or button["text"] == ".":
+                                button["state"] = DISABLED
 
-        # if user did operation a long time ago
-        if flag == False:
-            #  enable buttons which were disabled
+                flag = True
+
+            else:
+                flag = False
+
+        # the last sign isn't an operation
+        if not flag:
+            # enable buttons which were disabled
             for mas in self.menu:
                 for button in mas:
                     button["state"] = "normal"
 
+        # update itself
         self.root.after(80, self.update)
 
 
