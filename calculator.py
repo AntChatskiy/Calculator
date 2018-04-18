@@ -272,7 +272,7 @@ class Window(object):
         # insert result into operation entry
         self.operationEntry.insert(END, result)
 
-y    def update(self):
+    def update(self):
         """
         Update the window
 
