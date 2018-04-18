@@ -1,11 +1,12 @@
 import operator
+import copy
 from tkinter import *
 from tkinter import ttk
 
 
 class Calculator(object):
     def __init__(self):
-        self.priority = {'+': 1, '-': 1, '*': 2, '/': 2}
+        self.priority = {'+': 1, '-': 1, '*': 2, '/': 2, "^": 3}
         self.operators = {"(": None, ")": None, '+': operator.add, '-': operator.sub,
                      '*': operator.mul, '/': operator.truediv, "^": operator.pow}
 
@@ -16,6 +17,11 @@ class Calculator(object):
         """
         # turn expression without spaces into list, which divide expression into operands and operators
         expression = self.parse(expression)
+
+        # checking for errors
+        if expression == "UnknownSignError":
+            return expression
+
         # turn expression into Reverse Polish Notation
         expression = self.infix_to_postfix(expression)
 
@@ -23,7 +29,13 @@ class Calculator(object):
         for sign in expression:
             if sign in self.operators:
                 op2, op1 = stack.pop(), stack.pop()
-                stack.append(self.operators[sign](op1, op2))
+
+                try:
+                    stack.append(self.operators[sign](op1, op2))
+                except ZeroDivisionError:
+                    stack = ["ZeroDivisionError"]
+                    break
+
             elif sign:
                 stack.append(float(sign))
 
@@ -60,8 +72,15 @@ class Calculator(object):
         :param expression: 
         :return: list with expression operators and operands 
         """
+        # checking for errors
+        for sign in expression:
+            if sign not in self.operators and not sign.isdigit() and sign != ".":
+                output = "UnknownSignError"
+                return output
+
         output = []
         for sign in expression:
+            # if sign is math operator
             if sign in self.operators:
                 output.append(sign)
 
@@ -69,11 +88,11 @@ class Calculator(object):
             elif not output:
                 output.append(sign)
 
-            # if sign is operand and last sign isn't an operand
+            # if sign is digit and last sign is math operator
             elif sign not in self.operators and not output[-1].isdigit() and "." not in output[-1]:
                 output.append(sign)
 
-            # if sign is operand and last sign is operand
+            # if sign is digit and last sign is digit
             elif sign not in self.operators and output[-1].isdigit() or "." in output[-1]:
                 output[-1] += sign
 
@@ -116,9 +135,13 @@ class Window(object):
         # create calculator object
         self.calculator = Calculator()
 
-        # create window
+        # create main window
         self.root = Tk()
         self.root.title("Calculator")
+
+        # let window unchangeable
+        self.root.minsize(292, 211)
+        self.root.maxsize(292, 211)
 
         # create frames for entry and keyboard
         self.calculationFrame = Frame(master=self.root)
@@ -134,31 +157,34 @@ class Window(object):
             ["6", "5", "4", "-"],
             ["3", "2", "1", "*"],
             ["0", "00", ".", "/"],
-            ["CE", "C", "=", "^"],
-            ["(", ")"]
+            ["C", "CE", "=", "^"],
+            ["(", ")", "M"]
 
         ]
 
         # list with buttons
         self.menu = []
 
+        # font for ttk.buttons
         self.fontStyle = ttk.Style()
         self.fontStyle.configure("TButton", font=("times", "14"))
 
         # buttons settings
         self.settings = {"style": "TButton", "width": 6}  # "font": "times 14",
 
-        # list with operands
-        self.operations = ["+", "-", "*", "/", "^", "="]
+        # list with operations
+        self.operations = self.calculator.operators
+
+        # list with operands and signs which program use to prevent errors
+        self.errorSigns = self.operations
+        self.errorSigns.update({".": None})
 
         #  create and pack entries in top frame
-        self.operationEntry = Entry(self.calculationFrame, width=16, font="times 14")
-        self.operationEntry.pack(side=LEFT)
-        self.resultEntry = Entry(self.calculationFrame, width=14, state=DISABLED, font="times 14")
-        self.resultEntry.pack(side=RIGHT)
+        self.operationEntry = Entry(self.calculationFrame, width=32, font="times 14")
+        self.operationEntry.pack()
 
-        # contains information about calculator's memory - is it empty or not
-        self.memoryFlag = False
+        # contains information about calculator's memory
+        self.memory = []
 
     def create_menu(self):
         """
@@ -188,6 +214,11 @@ class Window(object):
                                                command=lambda: self.operationEntry.delete(0, END)))
                     self.menu[i][ii].grid(row=i, column=ii)
 
+                elif sign == "M":
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings, command=self.history))
+                    self.menu[i][ii].grid(row=i, column=ii)
+
+                # must be usual sign
                 else:
                     self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda lambda_sign=sign:
@@ -198,12 +229,50 @@ class Window(object):
         self.update()
         self.root.mainloop()
 
+    def history(self):
+        # create window for memorizing
+        historyWindow = Tk()
+        historyWindow.title("History")
+
+        # exit button
+        ttk.Button(historyWindow, text="Exit", **self.settings, command=lambda: historyWindow.destroy()).pack(side=TOP)
+
+        memory = copy.copy(self.memory)
+        # reverse operations chronologically
+        memory.reverse()
+
+        # reverse memory operations
+        for elem in memory:
+            Label(historyWindow, text=elem, width=32, font="times 14").pack(side=BOTTOM)
+
+        historyWindow.mainloop()
+
     def math(self):
+        # get expression from operation entry
         expression = self.operationEntry.get()
         self.operationEntry.delete(0, END)
-        self.operationEntry.insert(END, self.calculator.calculation(expression))
 
-    def update(self):
+        # add operation to memory
+        if len(self.memory) <= 8:
+            self.memory.append(expression)
+
+        # if memory reached limit it updates
+        else:
+            self.memory.pop(0)
+            self.memory.append(expression)
+
+        # calculate result of the operation
+        result = self.calculator.calculation(expression)
+
+        if isinstance(result, int) or isinstance(result, float):
+            # turn integer result from real number into integer
+            if result % 1 == 0:
+                result = int(result)
+
+        # insert result into operation entry
+        self.operationEntry.insert(END, result)
+
+y    def update(self):
         """
         Update the window
 
@@ -228,7 +297,7 @@ class Window(object):
                 for mas in self.menu:
                     for button in mas:
                         # if button text and operation sign or button are the same...
-                            if button["text"] in self.operations or button["text"] == ".":
+                            if button["text"] in self.errorSigns:
                                 button["state"] = DISABLED
 
                 flag = True
