@@ -32,12 +32,18 @@ class Calculator(object):
 
                 try:
                     stack.append(self.operators[sign](op1, op2))
+
                 except ZeroDivisionError:
-                    stack = ["ZeroDivisionError"]
-                    break
+                    return "ZeroDivisionError"
 
             elif sign:
-                stack.append(float(sign))
+                # if string is floating point number, turn it into class float
+                if "." in sign:
+                    stack.append(float(sign))
+
+                # if string is integer, turn it into class int
+                else:
+                    stack.append(int(sign))
 
         return stack.pop()
 
@@ -48,19 +54,24 @@ class Calculator(object):
         """
         stack = []  # only pop when the coming op has priority
         output = []
+
         for sign in expression:
             if sign not in self.operators:
                 output.append(sign)
+
             elif sign == '(':
                 stack.append('(')
+
             elif sign == ')':
                 while stack and stack[-1] != '(':
                     output.append(stack.pop())
                 stack.pop()  # pop '('
+
             else:
                 while stack and stack[-1] != '(' and self.priority[sign] <= self.priority[stack[-1]]:
                     output.append(stack.pop())
                 stack.append(sign)
+
         # leftover
         while stack:
             output.append(stack.pop())
@@ -93,13 +104,15 @@ class Calculator(object):
                 output.append(sign)
 
             # if sign is digit and last sign is digit
-            elif sign not in self.operators and output[-1].isdigit() or "." in output[-1]:
-                output[-1] += sign
+            elif sign not in self.operators:
+                if output[-1].isdigit() or "." in output[-1]:
+
+                    output[-1] += sign
 
         return output
 
     def reversePolishNotation(self, problem):
-        stack = ["+"]
+        stack = [""]
         mas = ""
 
         for sign in problem:
@@ -126,7 +139,9 @@ class Calculator(object):
         signs = ""
         for sign in stack:
             signs += " {} ".format(sign)
+
         mas += signs
+
         return mas
 
 
@@ -140,8 +155,8 @@ class Window(object):
         self.root.title("Calculator")
 
         # let window unchangeable
-        self.root.minsize(292, 211)
-        self.root.maxsize(292, 211)
+        self.root.minsize(300, 220)
+        self.root.maxsize(300, 220)
 
         # create frames for entry and keyboard
         self.calculationFrame = Frame(master=self.root)
@@ -153,13 +168,12 @@ class Window(object):
 
         # menu signs which could be changed without any damage to programme
         self.strMenu = [
+            ["(", ")", "M", "M+"],
             ["9", "8", "7", "+"],
             ["6", "5", "4", "-"],
             ["3", "2", "1", "*"],
             ["0", "00", ".", "/"],
-            ["C", "CE", "=", "^"],
-            ["(", ")", "M"]
-
+            ["C", "CE", "=", "^"]
         ]
 
         # list with buttons
@@ -176,7 +190,7 @@ class Window(object):
         self.operations = self.calculator.operators
 
         # list with operands and signs which program use to prevent errors
-        self.errorSigns = self.operations
+        self.errorSigns = copy.copy(self.operations)
         self.errorSigns.update({".": None})
 
         #  create and pack entries in top frame
@@ -184,7 +198,7 @@ class Window(object):
         self.operationEntry.pack()
 
         # contains information about calculator's memory
-        self.memory = []
+        self.memory = ""
 
     def create_menu(self):
         """
@@ -206,60 +220,44 @@ class Window(object):
                 elif sign == "CE":
                     self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda:
-                                               self.operationEntry.delete(len(self.operationEntry.get())-1)))
+                                               self.operationEntry.delete(len(self.operationEntry.get())-1))
+                                        )
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 elif sign == "C":
                     self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
-                                               command=lambda: self.operationEntry.delete(0, END)))
+                                               command=lambda: self.operationEntry.delete(0, END))
+                                        )
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 elif sign == "M":
-                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings, command=self.history))
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
+                                                   command=self.memorizing)
+                                        )
+                    self.menu[i][ii].grid(row=i, column=ii)
+
+                elif sign == "M+":
+                    self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
+                                                   command=self.push_memory)
+                                        )
                     self.menu[i][ii].grid(row=i, column=ii)
 
                 # must be usual sign
                 else:
                     self.menu[i].append(ttk.Button(self.numbersFrame, text=sign, **self.settings,
                                                command=lambda lambda_sign=sign:
-                                               self.operationEntry.insert(END, lambda_sign)))
+                                               self.operationEntry.insert(END, lambda_sign))
+                                        )
                     self.menu[i][ii].grid(row=i, column=ii)
 
         # create action which will update itself
         self.update()
         self.root.mainloop()
 
-    def history(self):
-        # create window for memorizing
-        historyWindow = Tk()
-        historyWindow.title("History")
-
-        # exit button
-        ttk.Button(historyWindow, text="Exit", **self.settings, command=lambda: historyWindow.destroy()).pack(side=TOP)
-
-        memory = copy.copy(self.memory)
-        # reverse operations chronologically
-        memory.reverse()
-
-        # reverse memory operations
-        for elem in memory:
-            Label(historyWindow, text=elem, width=32, font="times 14").pack(side=BOTTOM)
-
-        historyWindow.mainloop()
-
     def math(self):
         # get expression from operation entry
         expression = self.operationEntry.get()
         self.operationEntry.delete(0, END)
-
-        # add operation to memory
-        if len(self.memory) <= 8:
-            self.memory.append(expression)
-
-        # if memory reached limit it updates
-        else:
-            self.memory.pop(0)
-            self.memory.append(expression)
 
         # calculate result of the operation
         result = self.calculator.calculation(expression)
@@ -272,6 +270,13 @@ class Window(object):
         # insert result into operation entry
         self.operationEntry.insert(END, result)
 
+    def memorizing(self):
+        self.memory = self.operationEntry.get()
+
+    def push_memory(self):
+        self.operationEntry.insert(END, self.memory)
+        self.memory = ""
+
     def update(self):
         """
         Update the window
@@ -282,39 +287,38 @@ class Window(object):
         None
         """
         operation = self.operationEntry.get()
-        flag = False  # True - user did operation; False - user didn't do any operations
 
+        for mas in self.menu:
+            for button in mas:
+                button["state"] = "normal"
         # if user did anything
         if operation:
             last = operation[-1]
 
             # disable buttons
             # if there's an operation sign in the operation entry:
-            if last in self.operations:
-                flag = True
+            if last in self.errorSigns:
 
                 # check every button - does it contain an operation sign
                 for mas in self.menu:
                     for button in mas:
-                        # if button text and operation sign or button are the same...
+                        # if button text and  sign are the same
                             if button["text"] in self.errorSigns:
-                                button["state"] = DISABLED
+                                if last == ".":
+                                    button["state"] = DISABLED
 
-                flag = True
+                                elif last == "(" or last == ")":
+                                    if button["text"] not in self.operations:
+                                        button["state"] = DISABLED
 
-            else:
-                flag = False
-
-        # the last sign isn't an operation
-        if not flag:
-            # enable buttons which were disabled
-            for mas in self.menu:
-                for button in mas:
-                    button["state"] = "normal"
+                                else:
+                                    if button["text"] != "(" and button["text"] != ")":
+                                        button["state"] = DISABLED
 
         # update itself
         self.root.after(80, self.update)
 
+# TODO: assert tests
 
 calc = Window()
 calc.create_menu()
