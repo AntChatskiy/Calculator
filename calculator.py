@@ -318,7 +318,5 @@ class Window(object):
         # update itself
         self.root.after(80, self.update)
 
-# TODO: assert tests
-
 calc = Window()
 calc.create_menu()
