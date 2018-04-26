@@ -1,34 +1,74 @@
 import operator
+import math
 import copy
 import unittest
+import calculator_unittest
 from tkinter import *
 from tkinter import ttk
 
 
-class CalculatorTestCase(unittest.TestCase):
-    """
-    Contains test for calculator
-    """
-    def test_simple(self):
-        calculator = Calculator()
+class Parser(object):
+    def __init__(self):
+        """
+        Parser, universal way to parse yout string or massive
+        """
 
-        simple = {"2+2": 4, "6-5": 1, "-5+6": 1, "2*4": 8, "10/2": 5, "5^3": 125, "25*10^10": 250000000000}
-        for expression in simple:
-            self.assertEqual(calculator.calculation(expression), simple[expression])
+        self.specialActions = {"!": math.factorial}  # TODO
 
-    def test_normal(self):
-        calculator = Calculator()
+        self.digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+        self.operators = ["(", ")", "+", "-", "*", "/", "^"]
+        self.special = [elem for elem in self.specialActions] + ["."]
+        self.permissible = self.operators + self.special + self.digits
 
-        normal = {"2+2*2": 6, "(2+2)*2": 8, "6^0": 1, "5+4^6": 4101, "3^(2/2)": 3, "2+2*(2+2*2)": 14}
-        for expression in normal:
-            self.assertEqual(calculator.calculation(expression), normal[expression])
+    def main_parse(self):
+        None
 
-    def test_difficult(self):
-        calculator = Calculator()
+    def separation(self, expression):
+        """
+        Smart split function
+        :param expression: 
+        :return: list with expression operators and operands 
+        """
 
-        difficult = {"5+7^(2+4)": 117654, "54/2*9-1^9": 242, "56*4^9+25*(4-9)": 14679939}
-        for expression in difficult:
-            self.assertEqual(calculator.calculation(expression), difficult[expression])
+        # Checking for errors
+        for sign in expression:
+            if sign not in self.permissible:
+                return "UnknownSignError"
+
+        output = []
+        for sign in expression:
+            # If sign is math operator
+            if sign in self.operators:
+                output.append(sign)
+
+            # If output doesn't exist and if there isn't a mistake in input
+            elif not output:
+                if sign not in self.special:
+                    # FIXME be careful if you add something to special
+                    output.append(sign)
+
+            # if sign is special sign
+            elif sign in self.special:
+                # and last output elem doesn't have a special sign at the end
+                for elem in self.special:
+                    if elem in output[-1][-1]:
+                        break
+
+                else:
+                    output[-1] += sign
+
+            # If sign is digit and last sign is digit
+            elif output[-1][-1].isdigit() or "." in output[-1][-1]:
+                output[-1] += sign
+
+            # If sign is digit and last sign isn't digit or dot
+            elif sign.isdigit() and "." not in output[-1][-1]:
+                output.append(sign)
+
+        return output
+
+    def special_parse(self, expression):
+        None
 
 
 class Calculator(object):
@@ -37,8 +77,14 @@ class Calculator(object):
         Calculator: do operations and return the result
         """
         self.priority = {'+': 1, '-': 1, '*': 2, '/': 2, "^": 3}
+
         self.operators = {"(": None, ")": None, '+': operator.add, '-': operator.sub,
-                     '*': operator.mul, '/': operator.truediv, "^": operator.pow}
+                          '*': operator.mul, '/': operator.truediv, "^": operator.pow}
+
+        self.special = [".", "!"]
+        self.special = [elem for elem in self.operators] + self.special
+
+        self.parser = Parser()
 
     def calculation(self, expression):
         """
@@ -46,7 +92,7 @@ class Calculator(object):
         :return: resilt of expression 
         """
         # Turn expression without spaces into list, which divide expression into operands and operators
-        expression = self.parse(expression)
+        expression = self.parser.separation(expression)
 
         # Checking for errors
         if expression == "UnknownSignError":
@@ -108,44 +154,16 @@ class Calculator(object):
 
         return output
 
-    def parse(self, expression):
+    def reverse_polish_notation(self, expression):
         """
-        :param expression: 
-        :return: list with expression operators and operands 
+        :param expression: expression, which is written in infix way 
+        :return: expression, which is written in postfix way
         """
-        # Checking for errors
-        for sign in expression:
-            if sign not in self.operators and not sign.isdigit() and sign != ".":
-                output = "UnknownSignError"
-                return output
 
-        output = []
-        for sign in expression:
-            # If sign is math operator
-            if sign in self.operators:
-                output.append(sign)
-
-            # If output doesn't exist
-            elif not output:
-                output.append(sign)
-
-            # If sign is digit and last sign is math operator
-            elif sign not in self.operators and not output[-1].isdigit() and "." not in output[-1]:
-                output.append(sign)
-
-            # If sign is digit and last sign is digit
-            elif sign not in self.operators:
-                if output[-1].isdigit() or "." in output[-1]:
-
-                    output[-1] += sign
-
-        return output
-
-    def reversePolishNotation(self, problem):
         stack = [""]
         mas = ""
 
-        for sign in problem:
+        for sign in expression:
             if sign.isdigit():
                 # If sign is digit - send it to list
                 mas += sign
@@ -173,6 +191,31 @@ class Calculator(object):
         mas += signs
 
         return mas
+
+    def do_round(self, expression):
+        """
+        :param expression: "12+3.623" 
+        :return: "12+4"
+        """
+        expression = self.parser.separation(expression)  # ["12", "+", "3.6"]
+
+        expression.reverse()  # ["3.6", "+", "12"]
+
+        for i in range(len(expression)):
+            if "." in expression[i]:  # "3.6"
+                expression[i] = float(expression[i])  # "3.6" = 3.6
+                expression[i] = round(expression[i])  # 4
+                expression[i] = str(expression[i])  # 4 = "4"
+
+                break  # ["4", "+", "12"]
+
+        expression.reverse()  # ["12", "+", "4"]
+
+        result = ""
+        for elem in expression:
+            result += elem
+
+        return result
 
 
 class History(Frame):
@@ -240,8 +283,8 @@ class Window(object):
         self.root.title("Calculator")
 
         # Let window unchangeable
-        self.root.minsize(480, 220)
-        self.root.maxsize(480, 220)
+        self.root.minsize(550, 220)
+        self.root.maxsize(550, 220)
 
         # Create parent-frame for keyboard and entry frames
         self.mainFrame = Frame(self.root)
@@ -257,12 +300,12 @@ class Window(object):
 
         # Menu signs which could be changed without any damage to programme
         self.strMenu = [
-            ["M", "(", ")", "H", "T"],
-            ["M+", "9", "8", "7", "+"],
-            ["MC", "6", "5", "4", "-"],
-            ["", "3", "2", "1", "*"],
-            ["", "0", "00", ".", "/"],
-            ["", "C", "CE", "=", "^"]
+            ["M", "M+", "(", ")", "!", "+"],
+            ["MC", "H", "9", "8", "7", "-"],
+            ["п", "e", "6", "5", "4", "*"],
+            ["T", "", "3", "2", "1", "/"],
+            ["", "", "0", "00", ".", "^"],
+            ["", "", "C", "CE", "=", "≈"]
         ]
 
         # List with buttons
@@ -299,13 +342,19 @@ class Window(object):
         # Dictionary with special signs
         self.special = {"CE": lambda: self.operationEntry.delete(len(self.operationEntry.get())-1),
                         "C": lambda:  self.operationEntry.delete(0, END),
+                        "п": lambda: self.operationEntry.insert(END, math.pi),
+                        "e": lambda: self.operationEntry.insert(END, math.e),
                         "=": self.math,
+                        "≈": self.do_round,
                         "M": self.memorizing,
                         "MC": self.forgetting,
                         "M+": lambda: self.operationEntry.insert(END, self.memory),
                         "H": self.history.history_window,
-                        "T": unittest.main
+                        "T": self.calculator_test
                         }
+
+        # parser which is used in some functions
+        self.parser = Parser()
 
     def create_menu(self):
         """
@@ -342,6 +391,10 @@ class Window(object):
         self.root.mainloop()
 
     def math(self):
+        """
+        do math operation
+        :return: nothing
+        """
         # Get expression from operation entry
         expression = self.operationEntry.get()
         self.operationEntry.delete(0, END)
@@ -361,13 +414,21 @@ class Window(object):
         # Calculate result of the operation
         result = self.calculator.calculation(expression)
 
-        if isinstance(result, int) or isinstance(result, float):
-            # Turn integer result from real number into integer
-            if result % 1 == 0:
-                result = int(result)
-
         # Insert result into operation entry
         self.operationEntry.insert(END, result)
+
+    def do_round(self):
+        """
+        :input: string expression, for example "12+3.6"
+        :return: string expression, with rounded last digit, for example "12+4"
+        """
+        expression = self.operationEntry.get()  # "12+3.6"
+
+        self.operationEntry.delete(0, END)
+
+        result = self.calculator.do_round(expression)  # "12+4"
+
+        self.operationEntry.insert(0, result)
 
     def memorizing(self):
         self.memory = self.operationEntry.get()
@@ -391,6 +452,7 @@ class Window(object):
             for button in mas:
                 if button:
                     button["state"] = NORMAL
+
         # If user did anything
         if operation:
             last = operation[-1]
@@ -416,10 +478,20 @@ class Window(object):
                                         button["state"] = DISABLED
 
                             elif last == "(" or last == "." and button["text"] == "=":
-                                button["state"] = DISABLED
+                                if button["text"] == "=":
+                                    button["state"] = DISABLED
 
         # Update itself
         self.root.after(80, self.update)
+
+    @staticmethod
+    def calculator_test():
+        """
+        Test calculator. All test are kept in file calculator_unittest.py
+        :return: nothing
+        """
+        suite = unittest.TestLoader().loadTestsFromModule(calculator_unittest)
+        unittest.TextTestRunner(verbosity=2).run(suite)
 
 
 if __name__ == '__main__':
