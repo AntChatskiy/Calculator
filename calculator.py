@@ -326,8 +326,8 @@ class History(Frame):
         """
         Frame.__init__(self)
 
+        self.entryMas = []
         self.storage = memory
-
 
         # Label settings
         self.settings = {"font": "times 14", "justify": "center", "state": "disabled"}
@@ -428,9 +428,9 @@ class Window(object):
             ["M", "M+", "(", ")", "!", "+"],
             ["MC", "H", "9", "8", "7", "-"],
             ["п", "e", "6", "5", "4", "*"],
-            ["T", "", "3", "2", "1", "/"],
+            ["y=", "x", "3", "2", "1", "/"],
             ["", "", "0", "00", ".", "^"],
-            ["", "", "C", "CE", "=", "≈"]
+            ["T", "", "C", "CE", "=", "≈"]
         ]
 
         # List with buttons
