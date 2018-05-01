@@ -94,14 +94,14 @@ class Parser(object):
                 return "error"
 
             elif "y=" in expression:
-                if expression[-1] == "y":
+                if expression[0] == "y":
                     return "graphic"
 
                 else:
                     return "InputError"
 
             elif "x=" in expression:
-                if expression[-1] == "x":
+                if expression[0] == "x":
                     return "point"
 
                 else:
@@ -327,7 +327,7 @@ class History(Frame):
         Frame.__init__(self)
 
         self.storage = memory
-        self.entryMas = []
+
 
         # Label settings
         self.settings = {"font": "times 14", "justify": "center", "state": "disabled"}
