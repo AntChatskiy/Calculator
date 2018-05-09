@@ -10,7 +10,7 @@ try:
 
 except ImportError:
     print("One of the folowwing libraries isn't installed: \n",
-          "operator, math, copy, unittest, numpy, matplotlib, tkinter")
+          "operator, math, copy, unittest, numpy, matplotlib, tkinter, re")
 
 try:
     import calculator_unittest
@@ -18,19 +18,41 @@ try:
 except ImportError:
     print("'calculator_unittest.py' is missing")
 
+digits = [str(digit) for digit in range(10)]
+trigonometry = {"c": math.cos, "s": math.sin, "t": math.tan}
+permissible = digits
+
+
+class Converter(object):
+    """
+    Converts a value from one quantity to another.
+    """
+    def __init__(self):
+        self.degree_radians = 0.0174533
+
+    def degree_to_radians(self, degree):
+        radians = degree * self.degree_radians
+        return radians
+
+    def radians_to_degree(self, radians):
+        degree = radians / self.degree_radians
+        return degree
+
 
 class Parser(object):
+    """
+    Parser, universal way to parse your string or massive
+    """
     def __init__(self):
-        """
-        Parser, universal way to parse yout string or massive
-        """
-
-        self.specialActions = {"!": math.factorial}  # TODO
-
-        self.digits = [str(digit) for digit in range(10)]
         self.operators = ["(", ")", "+", "-", "*", "/", "^", "="]
-        self.special = [elem for elem in self.specialActions] + ["x", "y"]
-        self.permissible = self.operators + self.special + self.digits + ["."]
+        self.priority = {'+': 1, '-': 1, '*': 2, '/': 2, "^": 3}
+
+        self.trigonometry_replace = {"cos": "c", "sin": "s", "tg": "t"}
+        global trigonometry
+        global digits
+        self.operators = ["(", ")", "+", "-", "*", "/", "^", "="]
+        self.special = ["x", "y"]
+        self.permissible = self.operators + self.special + digits + ["."]
 
     def main_parse(self):
         pass
@@ -60,7 +82,7 @@ class Parser(object):
                 elif not output:
                     output.append(sign)
 
-                # if sign is special sign
+                # If sign is special sign
                 elif sign in self.special:
                     # and last output elem doesn't have a special sign at the end
                     for elem in self.special:
@@ -80,11 +102,85 @@ class Parser(object):
 
             return output
 
-    def special_parse(self, expression):
-        pass
+    def trigonometric_parse(self, expression):
+        """
+        Gets expression 
+        :return: 
+        result : Expression string with trigonometric functions turned into {};
+        elements : List with elements which 've to be calculated before doing trigonometric functions
+        operations : List with trigonometric functions => connected with list <<elements>>
+        """
+        for elem in self.trigonometry_replace:
+            expression = expression.replace(elem, self.trigonometry_replace[elem])
+
+        result = ""
+        special = False  # Shows is it trigonometric function
+        elements = []
+        operations = []
+
+        deep = 0  # How many "(" was in trigonometric function
+
+        for i in range(len(expression)):
+            if expression[i] in trigonometry:
+                operations.append(expression[i])
+                result += "{}"
+                elements.append("")
+                special = True
+
+            elif expression[i] == "(" and special == True:
+                elements[-1] += "("
+                deep += 1
+
+            elif expression[i] == ")" and special == True:
+                elements[-1] += ")"
+                deep = deep - 1
+                if deep == 0:
+                    special = False
+
+            elif deep == 0:
+                result += expression[i]
+
+            else:
+                elements[-1] += expression[i]
+
+        for i in range(len(elements)):
+            elements[i] = elements[i][:-1][1:]
+
+        return result, elements, operations
+
+    def infix_to_postfix(self, expression):
+        """
+        :param expression: 
+        :return: reverse polish notation expression
+        """
+        stack = []  # Only pop when the coming op has priority
+        output = []
+
+        for sign in expression:
+            if sign not in self.operators:
+                output.append(sign)
+
+            elif sign == '(':
+                stack.append('(')
+
+            elif sign == ')':
+                while stack and stack[-1] != '(':
+                    output.append(stack.pop())
+                stack.pop()  # Pop '('
+
+            else:
+                while stack and stack[-1] != '(' and self.priority[sign] <= self.priority[stack[-1]]:
+                    output.append(stack.pop())
+                stack.append(sign)
+
+        # Leftover
+        while stack:
+            output.append(stack.pop())
+
+        return output
 
     @staticmethod
-    def type(expression):
+    def get_type(expression):
         """
         Gets expression. Return expression type: error, graphic, point or expression
         :return: type
@@ -115,10 +211,10 @@ class Parser(object):
 
 
 class Plot(object):
+    """
+    Plot class based on matplotlib
+    """
     def __init__(self):
-        """
-        Plot class based on matplotlib
-        """
         pass
 
     @staticmethod
@@ -146,13 +242,11 @@ class Plot(object):
 
 
 class Calculator(object):
+    """
+    Calculator, which does operations and returns result
+    """
     def __init__(self):
-        """
-        Calculator: do operations and return the result
-        """
-        self.digits = [str(digit) for digit in range(10)]
-
-        self.priority = {'+': 1, '-': 1, '*': 2, '/': 2, "^": 3}
+        global digits
 
         self.operators = {"(": None, ")": None, '+': operator.add, '-': operator.sub,
                           '*': operator.mul, '/': operator.truediv, "^": operator.pow}
@@ -170,7 +264,7 @@ class Calculator(object):
         :param expression: 
         :return: resilt of expression 
         """
-        exprType = self.parser.type(expression)
+        exprType = self.parser.get_type(expression)
 
         # Checking for errors
         if exprType == "error":
@@ -186,15 +280,13 @@ class Calculator(object):
 
             expression = self.parser.separation(expression)
 
-            expression = self.infix_to_postfix(expression)
+            expression = self.parser.infix_to_postfix(expression)
 
             self.graphic_calculation(expression)
 
             return " "
 
-        elif exprType == "point":
-            pass
-
+        # Checking for expression
         elif exprType == "expression":
             # Turn expression without spaces into list, which divide expression into operands and operators
             expression = self.parser.separation(expression)
@@ -203,7 +295,7 @@ class Calculator(object):
                 return expression
 
             # Turn expression into Reverse Polish Notation
-            expression = self.infix_to_postfix(expression)
+            expression = self.parser.infix_to_postfix(expression)
 
             # Calculate
             expression = self.calculation(expression)
@@ -262,36 +354,33 @@ class Calculator(object):
         # Create graphic
         self.plot.create_graphic(y, x)
 
-    def infix_to_postfix(self, expression):
-        """
-        :param expression: 
-        :return: reverse polish notation expression
-        """
-        stack = []  # Only pop when the coming op has priority
-        output = []
 
-        for sign in expression:
-            if sign not in self.operators:
-                output.append(sign)
+class Manager(object):
+    """
+    Manages main processes between calculator, converter and parser.
+    """
+    def __init__(self):
+        self.converter = Converter()
+        self.calculator = Calculator()
+        self.parser = Parser()
 
-            elif sign == '(':
-                stack.append('(')
+        global trigonometry
 
-            elif sign == ')':
-                while stack and stack[-1] != '(':
-                    output.append(stack.pop())
-                stack.pop()  # Pop '('
+    def calculation(self, expression):
+        expression = self.trigonometric_parse(expression)
+        return self.calculator.main(expression)
 
-            else:
-                while stack and stack[-1] != '(' and self.priority[sign] <= self.priority[stack[-1]]:
-                    output.append(stack.pop())
-                stack.append(sign)
+    def trigonometric_parse(self, expression):
+        template, elements, operations = self.parser.trigonometric_parse(expression)
 
-        # Leftover
-        while stack:
-            output.append(stack.pop())
+        for i in range(len(elements)):
+            elements[i] = self.calculator.main(elements[i])
+            elements[i] = trigonometry[operations[i]](elements[i])
+            elements[i] = str(round(elements[i], 6))
 
-        return output
+        expression = template.format(*elements)
+
+        return expression
 
     def do_round(self, expression):
         """
@@ -300,34 +389,71 @@ class Calculator(object):
         """
         expression = self.parser.separation(expression)  # ["12", "+", "3.6"]
 
-        expression.reverse()  # ["3.6", "+", "12"]
+        expression.reverse()  # Put elements chronologically
 
         for i in range(len(expression)):
             if "." in expression[i]:  # "3.6"
-                expression[i] = float(expression[i])  # "3.6" = 3.6
-                expression[i] = round(expression[i])  # 4
-                expression[i] = str(expression[i])  # 4 = "4"
+                expression[i] = str(round(float(expression[i])))  # "3.6" = 3.6
 
                 break  # ["4", "+", "12"]
 
-        expression.reverse()  # ["12", "+", "4"]
+        expression.reverse()
 
-        result = ""
-        for elem in expression:
-            result += elem
+        return "".join(expression)
 
-        return result
+    def immediate_trigonometry(self, expression, funct_type):
+        """
+        Gets string expression and returns it with last number turned into trigonometry function result 
+        """
+        expression = self.parser.separation(expression)
+
+        # Convert degrees to radians, gets result
+        expression[-1] = trigonometry[funct_type](self.converter.degree_to_radians(float(expression[-1])))
+        expression[-1] = str(round(expression[-1], 6))
+        return "".join(expression)
+
+
+class HistoryStorage(object):
+    """
+    Class which keeps list in it and return it 
+    """
+    def __init__(self):
+        self.storage = []
+
+    def get(self):
+        """
+        :return: list which is kept in self.storage 
+        """
+        return self.storage
+
+    def get_chronologically(self):
+        """
+        :return: list with reversed elements 
+        """
+        storage = copy.copy(self.storage)
+        storage.reverse()
+        return storage
+
+    def send(self, memory):
+        """
+        Gets memory and copy 
+        """
+        self.storage = memory
 
 
 class History(Frame):
+    """
+    Special type of frame, created for showing calculator's history to user
+    """
     def __init__(self, N, memory):
-        """
-        Special type of frame, created for showing calculator's history to user
-        """
         Frame.__init__(self)
 
+        self.memory = memory
+
         self.entryMas = []
-        self.storage = memory
+
+        self.storage = HistoryStorage()
+        self.storage.send(self.memory)
 
         # Label settings
         self.settings = {"font": "times 14", "justify": "center", "state": "disabled"}
@@ -349,9 +475,10 @@ class History(Frame):
         Updates history
         :return: 
         """
-        if self.storage:
-            storage = copy.copy(self.storage)
-            storage.reverse()
+
+        # If memory does exist
+        if self.memory:
+            storage = self.storage.get_chronologically()
 
             for i in range(len(storage)):
                 self.entryMas[i]["state"] = NORMAL
@@ -373,10 +500,10 @@ class History(Frame):
         btn = ttk.Button(self.history_window, text="Exit", **self.ttkSettings, command=self.history_window.destroy)
         btn.pack(side=TOP)
 
+        # Bind root window to react on any pressed button - if "escape" was pressed => destroy itself
         self.history_window.bind("<KeyPress>", self.destroy_window)
 
-        storage = copy.copy(self.storage)
-        storage.reverse()
+        storage = self.storage.get_chronologically()
 
         for i in range(len(storage)):
             Label(self.history_window, text=(str(i+1) + ". " + storage[i]), **self.settings).pack(side=TOP)
@@ -394,15 +521,18 @@ class Window(object):
         Calculator's GUI
         """
         # Create calculator object
-        self.calculator = Calculator()
+        self.calculator = Manager()
+
+        # Parser which is used in some functions
+        self.parser = Parser()
 
         # Create main window
         self.root = Tk()
         self.root.title("Calculator")
 
         # Let window unchangeable
-        self.root.minsize(550, 220)
-        self.root.maxsize(550, 220)
+        self.root.minsize(650, 220)
+        self.root.maxsize(650, 220)
 
         # bind keyboard
         self.root.bind("<KeyPress>", self.key_press)
@@ -425,12 +555,12 @@ class Window(object):
 
         # Menu signs which could be changed without any damage to programme
         self.strMenu = [
-            ["M", "M+", "(", ")", "!", "+"],
-            ["MC", "H", "9", "8", "7", "-"],
-            ["п", "e", "6", "5", "4", "*"],
-            ["y=", "x", "3", "2", "1", "/"],
-            ["", "", "0", "00", ".", "^"],
-            ["T", "", "C", "CE", "=", "≈"]
+            ["", "M", "M+", "(", ")", "T", "+"],
+            ["", "MC", "H", "9", "8", "7", "-"],
+            ["", "п", "e", "6", "5", "4", "*"],
+            ["", "y=", "x", "3", "2", "1", "/"],
+            ["cos", "sin", "tg", "0", "00", ".", "^"],
+            ["cos(", "sin(", "tg(", "C", "CE", "=", "≈"]
         ]
 
         # List with buttons
@@ -444,14 +574,13 @@ class Window(object):
         self.settings = {"style": "TButton", "width": 6}
 
         # List with operations
-        self.operations = self.calculator.operators
+        self.operations = self.calculator.calculator.operators
 
         # List with operands and signs which program use to prevent errors
+        self.special = ["=", "x", "y", "y="]
+        global digits
         self.errorSigns = [elem for elem in self.operations] + ["."]
-        self.special = ["=", "!"]
-        self.variables = ["x", "y"]
-        self.digits = [str(digit) for digit in range(10)]
-        self.permissible = self.errorSigns + self.special + self.digits + self.variables
+        self.permissible = self.errorSigns + digits
 
         # Create and pack entries in top frame
         self.operationEntry = Entry(self.calculationFrame, width=32, font="times 14")
@@ -471,27 +600,29 @@ class Window(object):
 
         # Dictionary with special signs
         self.special = {"=": self.math,
-                        "CE": lambda : self.operationEntry.delete(len(self.operationEntry.get())-1),
-                        "C": lambda :  self.operationEntry.delete(0, END),
-                        "п": lambda : self.operationEntry.insert(END, math.pi),
-                        "e": lambda : self.operationEntry.insert(END, math.e),
+                        "CE": lambda: self.operationEntry.delete(len(self.operationEntry.get())-1),
+                        "C": lambda:  self.operationEntry.delete(0, END),
+                        "cos": lambda: self.immediate_trigonometry("c"),
+                        "sin": lambda: self.immediate_trigonometry("s"),
+                        "tg": lambda: self.immediate_trigonometry("t"),
+                        "п": lambda: self.operationEntry.insert(END, math.pi),
+                        "e": lambda: self.operationEntry.insert(END, math.e),
                         "≈": self.do_round,
                         "M": self.memorizing,
                         "MC": self.forgetting,
-                        "M+": lambda : self.operationEntry.insert(END, self.memory),
+                        "M+": lambda: self.operationEntry.insert(END, self.memory),
                         "H": self.history.create_history_window,
                         "T": self.calculator_test
                         }
 
         # Dictionary with key-codes
         self.keycodes = {13: self.math,  # Enter - calculate
-                         27: lambda : self.root.destroy(),  # Escape - destroy window
-                         67: lambda : self.operationEntry.delete(0, END),  # Clear entry
+                         27: lambda: self.root.destroy(),  # Escape - destroy window
+                         67: lambda: self.operationEntry.delete(0, END),  # Clear entry
                          72: self.history.create_history_window  # H - create history window
                          }
 
-        # Parser which is used in some functions
-        self.parser = Parser()
+        global trigonometry
 
     def create_menu(self):
         """
@@ -573,7 +704,7 @@ class Window(object):
         self.history.update_history()
 
         # Calculate result of the operation
-        result = self.calculator.main(expression)
+        result = self.calculator.calculation(expression)
 
         # Insert result into operation entry
         self.operationEntry.insert(END, result)
@@ -588,6 +719,18 @@ class Window(object):
         self.operationEntry.delete(0, END)
 
         result = self.calculator.do_round(expression)  # "12+4"
+
+        self.operationEntry.insert(0, result)
+
+    def immediate_trigonometry(self, funct_type):
+        """
+        Gets trigonometry function type and returns whole string expression with function result in the end
+        """
+        expression = self.operationEntry.get()
+
+        self.operationEntry.delete(0, END)
+
+        result = self.calculator.immediate_trigonometry(expression, funct_type)
 
         self.operationEntry.insert(0, result)
 
@@ -644,7 +787,7 @@ class Window(object):
                 self.operationEntry.delete(0, END)
                 self.operationEntry.insert(0, operation)
 
-            elif last in self.special or last in self.variables:
+            elif last in self.special:
                 if last in operation[:-1]:
                     operation = operation[:-1]
                     self.operationEntry.delete(0, END)
