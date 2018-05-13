@@ -580,7 +580,7 @@ class Window(object):
         self.special = ["=", "x", "y", "y="]
         global digits
         self.errorSigns = [elem for elem in self.operations] + ["."]
-        self.permissible = self.errorSigns + digits
+        self.permissible = self.errorSigns + digits + self.special
 
         # Create and pack entries in top frame
         self.operationEntry = Entry(self.calculationFrame, width=32, font="times 14")
